@@ -71,7 +71,14 @@ namespace BetterCommandArtifact
             else
             {
                 Random rnd = new Random();
-                List<PickupIndex> list = (from x in newSelection.ToList() orderby rnd.Next() select x).Where( x => Run.instance.IsPickupAvailable(x)).Take(itemAmount.Value).ToList();
+                List<PickupIndex> list = new List<PickupIndex> { pickupIndex };
+                if (itemAmount.Value - 1 > 0)
+                {
+                    List<PickupIndex> additionalOptions = (from x in newSelection.ToList() orderby rnd.Next() select x).Where(x => Run.instance.IsPickupAvailable(x)).Take(itemAmount.Value - 1).ToList();
+                    additionalOptions.Remove(pickupIndex);
+                    list.AddRange(additionalOptions);
+                }
+
                 array = new PickupPickerController.Option[list.Count];
                 for (int i = 0; i < list.Count; i++)
                 {
