@@ -82,8 +82,9 @@ namespace BetterCommandArtifact
 
                 if (extraItems > 0)
                 {
-                    List<PickupIndex> additionalOptions = (from x in newSelection.ToList() orderby rnd.Next() select x).Where(x => Run.instance.IsPickupAvailable(x)).Take(extraItems).ToList();
-                    additionalOptions.Remove(pickupIndex);
+                    var add = (from x in newSelection.ToList() orderby rnd.Next() select x).Where(x => Run.instance.IsPickupAvailable(x));
+
+                    List<PickupIndex> additionalOptions = (from x in newSelection.ToList() orderby rnd.Next() select x).Where(x => (Run.instance.IsPickupAvailable(x) && x != pickupIndex)).Take(extraItems).ToList();
                     list.AddRange(additionalOptions);
                 }
 
