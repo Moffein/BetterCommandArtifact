@@ -1,12 +1,17 @@
-﻿using System;
+﻿using System.Security;
+using System.Security.Permissions;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using BepInEx;
 using BepInEx.Configuration;
 using RoR2;
 using UnityEngine.Networking;
-using PickupIndex = RoR2.PickupIndex;
-using PickupTransmutationManager = RoR2.PickupTransmutationManager;
+
+#pragma warning disable CS0618 // Type or member is obsolete
+[assembly: SecurityPermission(SecurityAction.RequestMinimum, SkipVerification = true)]
+#pragma warning restore CS0618 // Type or member is obsolete
+[module: UnverifiableCode]
 
 namespace R2API.Utils
 {
@@ -30,10 +35,13 @@ namespace BetterCommandArtifact
         public static ConfigFile configFile = new ConfigFile(Paths.ConfigPath + "\\BetterCommandArtifact.cfg", true);
 
         public static ConfigEntry<int> itemAmount { get; set; }
-        
+        public static ConfigEntry<bool> allowBoss { get; set; }
+
         public void OnEnable()
         {
             itemAmount = configFile.Bind("BetterCommandArtifact", "itemAmount", 5, new ConfigDescription("Set the amount of items shown when opening a command artifact drop. \n Value must be Greater Than 0."));
+            allowBoss = configFile.Bind("BetterCommandArtifact", "Allow Boss", false, new ConfigDescription("Allow boss items to have multiple options?"));
+
             Config.SettingChanged += ConfigOnSettingChanged;
             On.RoR2.PickupPickerController.SetOptionsFromPickupForCommandArtifact += SetOptions;
         }
@@ -76,14 +84,30 @@ namespace BetterCommandArtifact
                 int extraItems = itemAmount.Value;
                 if (pickupIndex != PickupIndex.none)
                 {
-                    list.Add(pickupIndex);
-                    extraItems--;
+                    PickupDef pd = PickupCatalog.GetPickupDef(pickupIndex);
+                    if (pd != null)
+                    {
+                        bool isValidEquip = pd.equipmentIndex != EquipmentIndex.None;
+                        bool isValidItem = pd.itemIndex != ItemIndex.None;
+                        if (isValidEquip || isValidItem)
+                        {
+                            list.Add(pickupIndex);
+                            extraItems--;
+
+                            if (isValidItem)
+                            {
+                                ItemDef id = ItemCatalog.GetItemDef(pd.itemIndex);
+                                if (id != null && id.deprecatedTier == ItemTier.Boss && !allowBoss.Value)
+                                {
+                                    extraItems = 0;
+                                }
+                            }
+                        }
+                    }
                 }
 
                 if (extraItems > 0)
                 {
-                    var add = (from x in newSelection.ToList() orderby rnd.Next() select x).Where(x => Run.instance.IsPickupAvailable(x));
-
                     List<PickupIndex> additionalOptions = (from x in newSelection.ToList() orderby rnd.Next() select x).Where(x => (Run.instance.IsPickupAvailable(x) && x != pickupIndex)).Take(extraItems).ToList();
                     list.AddRange(additionalOptions);
                 }
