@@ -39,7 +39,7 @@ namespace BetterCommandArtifact
 
         public void OnEnable()
         {
-            itemAmount = configFile.Bind("BetterCommandArtifact", "itemAmount", 5, new ConfigDescription("Set the amount of items shown when opening a command artifact drop. \n Value must be Greater Than 0."));
+            itemAmount = configFile.Bind("BetterCommandArtifact", "itemAmount", 3, new ConfigDescription("Set the amount of items shown when opening a command artifact drop. \n Value must be Greater Than 0."));
             allowBoss = configFile.Bind("BetterCommandArtifact", "Allow Boss", false, new ConfigDescription("Allow boss items to have multiple options?"));
 
             Config.SettingChanged += ConfigOnSettingChanged;
@@ -97,7 +97,7 @@ namespace BetterCommandArtifact
                             if (isValidItem)
                             {
                                 ItemDef id = ItemCatalog.GetItemDef(pd.itemIndex);
-                                if (id != null && id.deprecatedTier == ItemTier.Boss && !allowBoss.Value)
+                                if (id != null && (id.deprecatedTier == ItemTier.Boss || id.deprecatedTier == ItemTier.VoidBoss) && !allowBoss.Value)
                                 {
                                     extraItems = 0;
                                 }
