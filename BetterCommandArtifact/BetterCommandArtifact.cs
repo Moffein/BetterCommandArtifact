@@ -30,20 +30,29 @@ namespace BetterCommandArtifact
         public const string PluginGUID = PluginAuthor + "." + PluginName;
         public const string PluginAuthor = "Boooooop";
         public const string PluginName = "BetterCommandArtifact";
-        public const string PluginVersion = "1.2.0";
+        public const string PluginVersion = "1.3.0";
 
         public static ConfigFile configFile = new ConfigFile(Paths.ConfigPath + "\\BetterCommandArtifact.cfg", true);
 
         public static ConfigEntry<int> itemAmount { get; set; }
         public static ConfigEntry<bool> allowBoss { get; set; }
 
+        public static ConfigEntry<bool> enablePrinter { get; set; }
+
         public void OnEnable()
         {
             itemAmount = configFile.Bind("BetterCommandArtifact", "itemAmount", 3, new ConfigDescription("Set the amount of items shown when opening a command artifact drop. \n Value must be Greater Than 0."));
             allowBoss = configFile.Bind("BetterCommandArtifact", "Allow Boss", false, new ConfigDescription("Allow boss items to have multiple options?"));
+            enablePrinter = configFile.Bind("BetterCommandArtifact", "Enable Printers and Scrappers", true, new ConfigDescription("Allow printers and scrappers to spawn while Command is enabled? Vanilla is false."));
 
             Config.SettingChanged += ConfigOnSettingChanged;
             On.RoR2.PickupPickerController.SetOptionsFromPickupForCommandArtifact += SetOptions;
+            On.RoR2.Artifacts.CommandArtifactManager.OnGenerateInteractableCardSelection += CommandArtifactManager_OnGenerateInteractableCardSelection;
+        }
+
+        private void CommandArtifactManager_OnGenerateInteractableCardSelection(On.RoR2.Artifacts.CommandArtifactManager.orig_OnGenerateInteractableCardSelection orig, SceneDirector sceneDirector, DirectorCardCategorySelection dccs)
+        {
+            if (!enablePrinter.Value) orig(sceneDirector, dccs);
         }
 
         void ConfigOnSettingChanged(object sender, SettingChangedEventArgs e)
