@@ -6,7 +6,9 @@ using System.Linq;
 using BepInEx;
 using BepInEx.Configuration;
 using RoR2;
+using RoR2.Artifacts;
 using UnityEngine.Networking;
+using UnityEngine;
 
 #pragma warning disable CS0618 // Type or member is obsolete
 [assembly: SecurityPermission(SecurityAction.RequestMinimum, SkipVerification = true)]
@@ -30,7 +32,7 @@ namespace BetterCommandArtifact
         public const string PluginGUID = PluginAuthor + "." + PluginName;
         public const string PluginAuthor = "Boooooop";
         public const string PluginName = "BetterCommandArtifact";
-        public const string PluginVersion = "1.4.0";
+        public const string PluginVersion = "1.4.1";
 
         public static ConfigFile configFile = new ConfigFile(Paths.ConfigPath + "\\BetterCommandArtifact.cfg", true);
 
@@ -82,6 +84,7 @@ namespace BetterCommandArtifact
 
             On.RoR2.PickupPickerController.SetOptionsFromPickupForCommandArtifact += SetOptions;
             On.RoR2.Artifacts.CommandArtifactManager.OnGenerateInteractableCardSelection += CommandArtifactManager_OnGenerateInteractableCardSelection;
+            On.RoR2.PickupDropletController.CreateCommandCube += CreateCommandCube;
         }
 
         private void CommandArtifactManager_OnGenerateInteractableCardSelection(On.RoR2.Artifacts.CommandArtifactManager.orig_OnGenerateInteractableCardSelection orig, SceneDirector sceneDirector, DirectorCardCategorySelection dccs)
@@ -93,8 +96,20 @@ namespace BetterCommandArtifact
         {
             On.RoR2.PickupPickerController.SetOptionsFromPickupForCommandArtifact -= SetOptions;
         }
+
+        void CreateCommandCube(On.RoR2.PickupDropletController.orig_CreateCommandCube orig, PickupDropletController self)
+        {
+            //If tier only has 1 item to drop, dont create a command cube
+            int extraItems = GetExtraItemCount(self.createPickupInfo.pickupIndex);
+            if (extraItems <= 0)
+            {
+                GenericPickupController.CreatePickup(self.createPickupInfo);
+                return;
+            }
+
+            orig(self);
+        }
         
-        [Server]
         void SetOptions(On.RoR2.PickupPickerController.orig_SetOptionsFromPickupForCommandArtifact orig, RoR2.PickupPickerController self, PickupIndex pickupIndex)
         {
             if (!NetworkServer.active) return;
@@ -115,86 +130,17 @@ namespace BetterCommandArtifact
             }
             else
             {
-                Random rnd = new Random();
+                System.Random rnd = new System.Random();
                 List<PickupIndex> list = new List<PickupIndex>();
 
                 int extraItems = itemAmount.Value;
 
                 if (pickupIndex != PickupIndex.none)
                 {
-                    PickupDef pd = PickupCatalog.GetPickupDef(pickupIndex);
-                    if (pd != null)
+                    extraItems = GetExtraItemCount(pickupIndex);
+                    if (extraItems > 0)
                     {
-                        bool isValidEquip = pd.equipmentIndex != EquipmentIndex.None;
-                        bool isValidItem = pd.itemIndex != ItemIndex.None;
-                        if (isValidEquip || isValidItem)
-                        {
-                            list.Add(pickupIndex);
-                            extraItems--;
-
-                            if (isValidItem)
-                            {
-                                ItemDef id = ItemCatalog.GetItemDef(pd.itemIndex);
-                                if (!perTierEnabled.Value)
-                                {
-                                    if (id != null && (id.deprecatedTier == ItemTier.Boss || id.deprecatedTier == ItemTier.VoidBoss) && !allowBoss.Value)
-                                    {
-                                        extraItems = 0;
-                                    }
-                                }
-                                else
-                                {
-                                    switch (id.deprecatedTier)
-                                    {
-                                        case ItemTier.Tier1:
-                                            extraItems = whiteAmount.Value;
-                                            break;
-                                        case ItemTier.Tier2:
-                                            extraItems = greenAmount.Value;
-                                            break;
-                                        case ItemTier.Tier3:
-                                            extraItems = redAmount.Value;
-                                            break;
-                                        case ItemTier.Boss:
-                                            extraItems = yellowAmount.Value;
-                                            break;
-                                        case ItemTier.VoidTier1:
-                                            extraItems = whiteVoidAmount.Value;
-                                            break;
-                                        case ItemTier.VoidTier2:
-                                            extraItems = greenVoidAmount.Value;
-                                            break;
-                                        case ItemTier.VoidTier3:
-                                            extraItems = redVoidAmount.Value;
-                                            break;
-                                        case ItemTier.VoidBoss:
-                                            extraItems = yellowVoidAmount.Value;
-                                            break;
-                                        case ItemTier.Lunar:
-                                            extraItems = lunarAmount.Value;
-                                            break;
-                                        default:
-                                            //Redundant, but here so that -1 doesn't need to be added to every case.
-                                            extraItems = itemAmount.Value;
-                                            break;
-                                    }
-                                    extraItems--;
-                                }
-                            }
-                            else if (isValidEquip && perTierEnabled.Value)
-                            {
-                                EquipmentDef ed = EquipmentCatalog.GetEquipmentDef(pd.equipmentIndex);
-
-                                if (ed.isLunar)
-                                {
-                                    extraItems = equipmentLunarAmount.Value - 1;
-                                }
-                                else
-                                {
-                                    extraItems = equipmentAmount.Value - 1;
-                                }
-                            }
-                        }
+                        list.Add(pickupIndex);
                     }
                 }
 
@@ -216,6 +162,89 @@ namespace BetterCommandArtifact
                 }
             }
             self.SetOptionsServer(array);
+        }
+
+        public static int GetExtraItemCount(PickupIndex pickupIndex)
+        {
+            if (pickupIndex != PickupIndex.none)
+            {
+                PickupDef pd = PickupCatalog.GetPickupDef(pickupIndex);
+                if (pd != null)
+                {
+                    bool isValidEquip = pd.equipmentIndex != EquipmentIndex.None;
+                    bool isValidItem = pd.itemIndex != ItemIndex.None;
+                    if (isValidEquip || isValidItem)
+                    {
+                        int extraItems = itemAmount.Value - 1;
+
+                        if (isValidItem)
+                        {
+                            ItemDef id = ItemCatalog.GetItemDef(pd.itemIndex);
+                            if (!perTierEnabled.Value)
+                            {
+                                if (id != null && (id.deprecatedTier == ItemTier.Boss || id.deprecatedTier == ItemTier.VoidBoss) && !allowBoss.Value)
+                                {
+                                    extraItems = 0;
+                                }
+                            }
+                            else
+                            {
+                                switch (id.deprecatedTier)
+                                {
+                                    case ItemTier.Tier1:
+                                        extraItems = whiteAmount.Value;
+                                        break;
+                                    case ItemTier.Tier2:
+                                        extraItems = greenAmount.Value;
+                                        break;
+                                    case ItemTier.Tier3:
+                                        extraItems = redAmount.Value;
+                                        break;
+                                    case ItemTier.Boss:
+                                        extraItems = yellowAmount.Value;
+                                        break;
+                                    case ItemTier.VoidTier1:
+                                        extraItems = whiteVoidAmount.Value;
+                                        break;
+                                    case ItemTier.VoidTier2:
+                                        extraItems = greenVoidAmount.Value;
+                                        break;
+                                    case ItemTier.VoidTier3:
+                                        extraItems = redVoidAmount.Value;
+                                        break;
+                                    case ItemTier.VoidBoss:
+                                        extraItems = yellowVoidAmount.Value;
+                                        break;
+                                    case ItemTier.Lunar:
+                                        extraItems = lunarAmount.Value;
+                                        break;
+                                    default:
+                                        //Redundant, but here so that -1 doesn't need to be added to every case.
+                                        extraItems = itemAmount.Value;
+                                        break;
+                                }
+                                extraItems--;
+                            }
+                        }
+                        else if (isValidEquip && perTierEnabled.Value)
+                        {
+                            EquipmentDef ed = EquipmentCatalog.GetEquipmentDef(pd.equipmentIndex);
+
+                            if (ed.isLunar)
+                            {
+                                extraItems = equipmentLunarAmount.Value - 1;
+                            }
+                            else
+                            {
+                                extraItems = equipmentAmount.Value - 1;
+                            }
+                        }
+
+                        return extraItems;
+                    }
+                }
+            }
+            return 0;
         }
     }
 }

@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
     <LangVersion>preview</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
@@ -53,10 +53,6 @@
     <Reference Include="HGUnityUtils">
       <HintPath>libs\HGUnityUtils.dll</HintPath>
     </Reference>
-    <Reference Include="KdTreeLib">
-      <HintPath>libs\KdTreeLib.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
     <Reference Include="KinematicCharacterController">
       <HintPath>libs\KinematicCharacterController.dll</HintPath>
     </Reference>
@@ -81,38 +77,17 @@
     <Reference Include="Mono.Cecil.Rocks">
       <HintPath>libs\BepInEx\Mono.Cecil.Rocks.dll</HintPath>
     </Reference>
-    <Reference Include="Mono.Security">
-      <HintPath>libs\Mono.Security.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
     <Reference Include="MonoMod.RuntimeDetour">
       <HintPath>libs\BepInEx\MonoMod.RuntimeDetour.dll</HintPath>
     </Reference>
     <Reference Include="MonoMod.Utils">
       <HintPath>libs\BepInEx\MonoMod.Utils.dll</HintPath>
     </Reference>
-    <Reference Include="pb_Stl">
-      <HintPath>libs\pb_Stl.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="Poly2Tri">
-      <HintPath>libs\Poly2Tri.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="ProBuilderCore">
-      <HintPath>libs\ProBuilderCore.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="ProBuilderMeshOps">
-      <HintPath>libs\ProBuilderMeshOps.dll</HintPath>
-      <Private>false</Private>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>libs\BepInEx\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="Rewired_CSharp">
       <HintPath>libs\Rewired_CSharp.dll</HintPath>
-    </Reference>
-    <Reference Include="Rewired_Windows_Lib">
-      <HintPath>libs\Rewired_Windows_Lib.dll</HintPath>
-      <Private>false</Private>
     </Reference>
     <Reference Include="RoR2">
       <HintPath>libs\RoR2.dll</HintPath>
