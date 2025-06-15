@@ -32,7 +32,7 @@ namespace BetterCommandArtifact
         public const string PluginGUID = PluginAuthor + "." + PluginName;
         public const string PluginAuthor = "Boooooop";
         public const string PluginName = "BetterCommandArtifact";
-        public const string PluginVersion = "1.4.1";
+        public const string PluginVersion = "1.5.0";
 
         public static ConfigFile configFile = new ConfigFile(Paths.ConfigPath + "\\BetterCommandArtifact.cfg", true);
 
@@ -47,6 +47,8 @@ namespace BetterCommandArtifact
         public static ConfigEntry<int> greenAmount { get; set; }
         public static ConfigEntry<int> redAmount { get; set; }
         public static ConfigEntry<int> yellowAmount { get; set; }
+
+        public static ConfigEntry<int> defaultAmount { get; set; }
 
         public static ConfigEntry<int> equipmentAmount { get; set; }
         public static ConfigEntry<int> equipmentLunarAmount { get; set; }
@@ -76,6 +78,8 @@ namespace BetterCommandArtifact
 
             yellowAmount = configFile.Bind("Tier Settings", "Yellow", 1, new ConfigDescription("How many options this tier has."));
             yellowVoidAmount = configFile.Bind("Tier Settings", "Yellow (Void)", 1, new ConfigDescription("How many options this tier has."));
+
+            defaultAmount = configFile.Bind("Tier Settings", "Default", 3, new ConfigDescription("How many options for items that fall outside of the listed tiers."));
 
             equipmentAmount = configFile.Bind("Tier Settings", "Equipment", 3, new ConfigDescription("How many options this tier has."));
 
@@ -182,14 +186,14 @@ namespace BetterCommandArtifact
                             ItemDef id = ItemCatalog.GetItemDef(pd.itemIndex);
                             if (!perTierEnabled.Value)
                             {
-                                if (id != null && (id.deprecatedTier == ItemTier.Boss || id.deprecatedTier == ItemTier.VoidBoss) && !allowBoss.Value)
+                                if (id != null && (id.tier == ItemTier.Boss || id.tier == ItemTier.VoidBoss) && !allowBoss.Value)
                                 {
                                     extraItems = 0;
                                 }
                             }
                             else
                             {
-                                switch (id.deprecatedTier)
+                                switch (id.tier)
                                 {
                                     case ItemTier.Tier1:
                                         extraItems = whiteAmount.Value;
@@ -219,8 +223,7 @@ namespace BetterCommandArtifact
                                         extraItems = lunarAmount.Value;
                                         break;
                                     default:
-                                        //Redundant, but here so that -1 doesn't need to be added to every case.
-                                        extraItems = itemAmount.Value;
+                                        extraItems = defaultAmount.Value;
                                         break;
                                 }
                                 extraItems--;
