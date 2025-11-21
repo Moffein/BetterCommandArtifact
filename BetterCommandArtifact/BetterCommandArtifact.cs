@@ -32,10 +32,11 @@ namespace BetterCommandArtifact
         public const string PluginGUID = PluginAuthor + "." + PluginName;
         public const string PluginAuthor = "Boooooop";
         public const string PluginName = "BetterCommandArtifact";
-        public const string PluginVersion = "1.5.0";
+        public const string PluginVersion = "1.5.1";
 
         public static ConfigFile configFile = new ConfigFile(Paths.ConfigPath + "\\BetterCommandArtifact.cfg", true);
 
+        public static ConfigEntry<bool> allowTemp { get; set; }
         public static ConfigEntry<int> itemAmount { get; set; }
         public static ConfigEntry<bool> allowBoss { get; set; }
 
@@ -47,6 +48,7 @@ namespace BetterCommandArtifact
         public static ConfigEntry<int> greenAmount { get; set; }
         public static ConfigEntry<int> redAmount { get; set; }
         public static ConfigEntry<int> yellowAmount { get; set; }
+        public static ConfigEntry<int> foodAmount { get; set; }
 
         public static ConfigEntry<int> defaultAmount { get; set; }
 
@@ -62,6 +64,7 @@ namespace BetterCommandArtifact
 
         public void OnEnable()
         {
+            allowTemp = configFile.Bind("BetterCommandArtifact", "Allow Temporary ITems", false, new ConfigDescription("Allow Temporary items to be selected?"));
             itemAmount = configFile.Bind("BetterCommandArtifact", "itemAmount", 3, new ConfigDescription("Set the amount of items shown when opening a command artifact drop. \n Value must be Greater Than 0."));
             allowBoss = configFile.Bind("BetterCommandArtifact", "Allow Boss", false, new ConfigDescription("Allow boss items to have multiple options? \n Ignored if Per-tier config is enabled."));
             enablePrinter = configFile.Bind("BetterCommandArtifact", "Enable Printers and Scrappers", true, new ConfigDescription("Allow printers and scrappers to spawn while Command is enabled? Vanilla is false."));
@@ -79,6 +82,8 @@ namespace BetterCommandArtifact
             yellowAmount = configFile.Bind("Tier Settings", "Yellow", 1, new ConfigDescription("How many options this tier has."));
             yellowVoidAmount = configFile.Bind("Tier Settings", "Yellow (Void)", 1, new ConfigDescription("How many options this tier has."));
 
+            foodAmount = configFile.Bind("Tier Settings", "Food", 3, new ConfigDescription("How many options this tier has."));
+
             defaultAmount = configFile.Bind("Tier Settings", "Default", 3, new ConfigDescription("How many options for items that fall outside of the listed tiers."));
 
             equipmentAmount = configFile.Bind("Tier Settings", "Equipment", 3, new ConfigDescription("How many options this tier has."));
@@ -86,7 +91,8 @@ namespace BetterCommandArtifact
             lunarAmount = configFile.Bind("Tier Settings", "Lunar", 3, new ConfigDescription("How many options this tier has."));
             equipmentLunarAmount = configFile.Bind("Tier Settings", "Lunar Equipment", 3, new ConfigDescription("How many options this tier has."));
 
-            On.RoR2.PickupPickerController.SetOptionsFromPickupForCommandArtifact += SetOptions;
+            On.RoR2.PickupPickerController.SetOptionsFromPickupForCommandArtifact_PickupIndex += PickupPickerController_SetOptionsFromPickupForCommandArtifact_PickupIndex;
+            On.RoR2.PickupPickerController.SetOptionsFromPickupForCommandArtifact_UniquePickup += PickupPickerController_SetOptionsFromPickupForCommandArtifact_UniquePickup;
             On.RoR2.Artifacts.CommandArtifactManager.OnGenerateInteractableCardSelection += CommandArtifactManager_OnGenerateInteractableCardSelection;
             On.RoR2.PickupDropletController.CreateCommandCube += CreateCommandCube;
         }
@@ -98,14 +104,19 @@ namespace BetterCommandArtifact
 
         public void OnDisable()
         {
-            On.RoR2.PickupPickerController.SetOptionsFromPickupForCommandArtifact -= SetOptions;
+            On.RoR2.PickupPickerController.SetOptionsFromPickupForCommandArtifact_PickupIndex -= PickupPickerController_SetOptionsFromPickupForCommandArtifact_PickupIndex;
+            On.RoR2.PickupPickerController.SetOptionsFromPickupForCommandArtifact_UniquePickup -= PickupPickerController_SetOptionsFromPickupForCommandArtifact_UniquePickup;
+            On.RoR2.Artifacts.CommandArtifactManager.OnGenerateInteractableCardSelection -= CommandArtifactManager_OnGenerateInteractableCardSelection;
+            On.RoR2.PickupDropletController.CreateCommandCube -= CreateCommandCube;
         }
 
         void CreateCommandCube(On.RoR2.PickupDropletController.orig_CreateCommandCube orig, PickupDropletController self)
         {
             //If tier only has 1 item to drop, dont create a command cube
-            int extraItems = GetExtraItemCount(self.createPickupInfo.pickupIndex);
-            if (extraItems <= 0)
+            bool isTemp = self.createPickupInfo.pickup.isTempItem && !allowTemp.Value;
+
+            int extraItems = GetExtraItemCount(self.createPickupInfo.pickup.pickupIndex);
+            if (extraItems <= 0 || isTemp)
             {
                 GenericPickupController.CreatePickup(self.createPickupInfo);
                 return;
@@ -113,12 +124,19 @@ namespace BetterCommandArtifact
 
             orig(self);
         }
-        
-        void SetOptions(On.RoR2.PickupPickerController.orig_SetOptionsFromPickupForCommandArtifact orig, RoR2.PickupPickerController self, PickupIndex pickupIndex)
+
+        private void PickupPickerController_SetOptionsFromPickupForCommandArtifact_PickupIndex(On.RoR2.PickupPickerController.orig_SetOptionsFromPickupForCommandArtifact_PickupIndex orig, PickupPickerController self, PickupIndex pickupIndex)
+        {
+            self.SetOptionsFromPickupForCommandArtifact(new UniquePickup()
+            {
+                pickupIndex = pickupIndex
+            });
+        }
+
+        private void PickupPickerController_SetOptionsFromPickupForCommandArtifact_UniquePickup(On.RoR2.PickupPickerController.orig_SetOptionsFromPickupForCommandArtifact_UniquePickup orig, PickupPickerController self, UniquePickup pickup)
         {
             if (!NetworkServer.active) return;
-            
-            PickupIndex[] newSelection = PickupTransmutationManager.GetGroupFromPickupIndex(pickupIndex);
+            var newSelection = PickupPickerController.GetOptionsFromPickupState(pickup);
             PickupPickerController.Option[] array;
 
             if (newSelection == null)
@@ -128,40 +146,43 @@ namespace BetterCommandArtifact
                     new PickupPickerController.Option
                     {
                         available = true,
-                        pickupIndex = pickupIndex
+                        pickup = pickup
                     }
                 };
             }
             else
             {
                 System.Random rnd = new System.Random();
-                List<PickupIndex> list = new List<PickupIndex>();
+                List<PickupPickerController.Option> list = new List<PickupPickerController.Option>();
 
                 int extraItems = itemAmount.Value;
 
-                if (pickupIndex != PickupIndex.none)
+                if (pickup.pickupIndex != PickupIndex.none)
                 {
-                    extraItems = GetExtraItemCount(pickupIndex);
+                    extraItems = GetExtraItemCount(pickup.pickupIndex);
                     if (extraItems > 0)
                     {
-                        list.Add(pickupIndex);
+                        list.Add(new PickupPickerController.Option
+                        {
+                            pickup = pickup
+                        });
                     }
                 }
 
                 if (extraItems > 0)
                 {
-                    List<PickupIndex> additionalOptions = (from x in newSelection.ToList() orderby rnd.Next() select x).Where(x => (Run.instance.IsPickupAvailable(x) && x != pickupIndex)).Take(extraItems).ToList();
+                    List<PickupPickerController.Option> additionalOptions = (from x in newSelection.ToList() orderby rnd.Next() select x).Where(x => (Run.instance.IsPickupAvailable(x.pickupIndex) && x.pickupIndex != pickup.pickupIndex)).Take(extraItems).ToList();
                     list.AddRange(additionalOptions);
                 }
 
                 array = new PickupPickerController.Option[list.Count];
                 for (int i = 0; i < list.Count; i++)
                 {
-                    PickupIndex pickupIndex2 = list[i];
+                    PickupPickerController.Option pickupOption2 = list[i];
                     array[i] = new PickupPickerController.Option
                     {
-                        available = Run.instance.IsPickupAvailable(pickupIndex2),
-                        pickupIndex = pickupIndex2
+                        available = Run.instance.IsPickupAvailable(pickupOption2.pickupIndex),
+                        pickup = pickupOption2.pickup
                     };
                 }
             }
@@ -221,6 +242,9 @@ namespace BetterCommandArtifact
                                         break;
                                     case ItemTier.Lunar:
                                         extraItems = lunarAmount.Value;
+                                        break;
+                                    case ItemTier.FoodTier:
+                                        extraItems = foodAmount.Value;
                                         break;
                                     default:
                                         extraItems = defaultAmount.Value;
