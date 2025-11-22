@@ -9,6 +9,7 @@ using RoR2;
 using RoR2.Artifacts;
 using UnityEngine.Networking;
 using UnityEngine;
+using RoR2.Items;
 
 #pragma warning disable CS0618 // Type or member is obsolete
 [assembly: SecurityPermission(SecurityAction.RequestMinimum, SkipVerification = true)]
@@ -32,7 +33,7 @@ namespace BetterCommandArtifact
         public const string PluginGUID = PluginAuthor + "." + PluginName;
         public const string PluginAuthor = "Boooooop";
         public const string PluginName = "BetterCommandArtifact";
-        public const string PluginVersion = "1.5.1";
+        public const string PluginVersion = "1.5.2";
 
         public static ConfigFile configFile = new ConfigFile(Paths.ConfigPath + "\\BetterCommandArtifact.cfg", true);
 
@@ -171,7 +172,19 @@ namespace BetterCommandArtifact
 
                 if (extraItems > 0)
                 {
-                    List<PickupPickerController.Option> additionalOptions = (from x in newSelection.ToList() orderby rnd.Next() select x).Where(x => (Run.instance.IsPickupAvailable(x.pickupIndex) && x.pickupIndex != pickup.pickupIndex)).Take(extraItems).ToList();
+                    List<PickupPickerController.Option> additionalOptions = (from x in newSelection.ToList() orderby rnd.Next() select x).Where(x =>
+                    {
+                        bool allow = (Run.instance.IsPickupAvailable(x.pickupIndex) && x.pickupIndex != pickup.pickupIndex);
+
+                        //check if pickup is suppressed
+                        PickupDef pd = PickupCatalog.GetPickupDef(x.pickupIndex);
+                        if (pd != null && pd.itemIndex != ItemIndex.None && SuppressedItemManager.suppressedInventory != null)
+                        {
+                            allow = allow && SuppressedItemManager.suppressedInventory.GetItemCountEffective(pd.itemIndex) <= 0;
+                        }
+
+                        return allow;
+                    }).Take(extraItems).ToList();
                     list.AddRange(additionalOptions);
                 }
 
