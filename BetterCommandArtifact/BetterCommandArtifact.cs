@@ -33,7 +33,7 @@ namespace BetterCommandArtifact
         public const string PluginGUID = PluginAuthor + "." + PluginName;
         public const string PluginAuthor = "Boooooop";
         public const string PluginName = "BetterCommandArtifact";
-        public const string PluginVersion = "1.5.2";
+        public const string PluginVersion = "1.5.3";
 
         public static ConfigFile configFile = new ConfigFile(Paths.ConfigPath + "\\BetterCommandArtifact.cfg", true);
 
@@ -151,6 +151,10 @@ namespace BetterCommandArtifact
                     }
                 };
             }
+            else if (newSelection.Length == 1)
+            {
+                array = newSelection;
+            }
             else
             {
                 System.Random rnd = new System.Random();
@@ -258,6 +262,9 @@ namespace BetterCommandArtifact
                                         break;
                                     case ItemTier.FoodTier:
                                         extraItems = foodAmount.Value;
+                                        break;
+                                    case ItemTier.NoTier:
+                                        extraItems = 1;
                                         break;
                                     default:
                                         extraItems = defaultAmount.Value;
